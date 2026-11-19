@@ -4,7 +4,6 @@ import Header from "./components/Header";
 import ProgressSummary from "./components/ProgressSummary";
 import CategorySection from "./components/CategorySection";
 import LoginModal from "./components/LoginModal";
-import ResetModal from "./components/ResetModal";
 import DeleteConfirmModal from "./components/DeleteConfirmModal";
 import {
   INITIAL_CATEGORIES,
@@ -14,9 +13,9 @@ import {
 import {
   subscribeToSharedChecklist,
   updateTaskStatusInFirestore,
+  updateTaskNoteInFirestore,
   addTaskToFirestore,
   deleteTaskFromFirestore,
-  resetChecklistInFirestore,
   isFirebaseConfigured,
 } from "./firebase";
 import { AlertCircle } from "lucide-react";
@@ -29,7 +28,6 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState("connected"); // 'connected' | 'syncing' | 'error' | 'local'
   const [isUpdating, setIsUpdating] = useState(false);
   const [syncError, setSyncError] = useState("");
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
 
   // Collapsible categories state: map of categoryId -> boolean (true: open, false: closed)
@@ -164,6 +162,55 @@ export default function App() {
     [currentUser, tasks]
   );
 
+  // Update task note/data value
+  const handleUpdateTaskNote = useCallback(
+    async (taskId, note) => {
+      if (!currentUser) return;
+
+      setIsUpdating(true);
+      setSyncStatus("syncing");
+
+      try {
+        if (isFirebaseConfigured) {
+          await updateTaskNoteInFirestore(
+            taskId,
+            note,
+            currentUser.email,
+            tasks
+          );
+          setSyncStatus("connected");
+        } else {
+          const updated = tasks.map((t) =>
+            t.id === taskId
+              ? {
+                  ...t,
+                  note: note,
+                  updatedAt: new Date().toISOString(),
+                  updatedBy: currentUser.email || "Demo User",
+                }
+              : t
+          );
+          setTasks(updated);
+          localStorage.setItem("amar_city_demo_tasks", JSON.stringify(updated));
+
+          if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+            const channel = new BroadcastChannel("amar_city_checklist_channel");
+            channel.postMessage({ type: "CHECKLIST_UPDATE", tasks: updated });
+            channel.close();
+          }
+          setSyncStatus("local");
+        }
+      } catch (err) {
+        console.error("Failed to update task note:", err);
+        setSyncStatus("error");
+        setSyncError(err.message || "Failed to save note.");
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    [currentUser, tasks]
+  );
+
   // Add a new task to a category
   const handleAddTask = useCallback(
     async (categoryId, title) => {
@@ -245,35 +292,6 @@ export default function App() {
     [currentUser, tasks]
   );
 
-  // Reset checklist confirmation
-  const handleConfirmReset = async () => {
-    if (!currentUser) return;
-    setIsUpdating(true);
-    setSyncStatus("syncing");
-
-    try {
-      if (isFirebaseConfigured) {
-        await resetChecklistInFirestore(currentUser.email);
-        setSyncStatus("connected");
-      } else {
-        const initialTasks = getInitialTasksArray();
-        setTasks(initialTasks);
-        localStorage.setItem("amar_city_demo_tasks", JSON.stringify(initialTasks));
-        if (typeof window !== "undefined" && "BroadcastChannel" in window) {
-          const channel = new BroadcastChannel("amar_city_checklist_channel");
-          channel.postMessage({ type: "CHECKLIST_UPDATE", tasks: initialTasks });
-          channel.close();
-        }
-        setSyncStatus("local");
-      }
-    } catch (err) {
-      console.error("Failed to reset checklist:", err);
-      setSyncError("Failed to reset checklist: " + err.message);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
   // Group tasks by category
   const tasksByCategory = useMemo(() => {
     const map = {};
@@ -349,7 +367,6 @@ export default function App() {
           metrics={metrics}
           allExpanded={allExpanded}
           onToggleAllExpanded={handleToggleAllExpanded}
-          onOpenResetModal={() => setIsResetModalOpen(true)}
         />
 
         {/* 10 Collapsible Checklist Categories */}
@@ -364,6 +381,7 @@ export default function App() {
                 isExpanded={Boolean(expandedCategories[category.id])}
                 onToggleExpand={() => handleToggleCategory(category.id)}
                 onToggleTask={handleToggleTask}
+                onUpdateTaskNote={handleUpdateTaskNote}
                 onAddTask={handleAddTask}
                 onDeleteTask={(task) => setTaskToDelete(task)}
                 isUpdating={isUpdating}
@@ -382,15 +400,6 @@ export default function App() {
             <span className="text-gray-400">•</span>
             <span className="text-emerald-700 font-bold">{metrics.percentage}% Completed</span>
           </div>
-
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => setIsResetModalOpen(true)}
-              className="text-red-600 hover:text-red-700 font-medium hover:underline text-xs"
-            >
-              Reset Checklist to Initial State
-            </button>
-          </div>
         </div>
 
       </main>
@@ -406,13 +415,6 @@ export default function App() {
           </p>
         </div>
       </footer>
-
-      {/* Confirmation Modal for Resetting */}
-      <ResetModal
-        isOpen={isResetModalOpen}
-        onClose={() => setIsResetModalOpen(false)}
-        onConfirm={handleConfirmReset}
-      />
 
       {/* Confirmation Modal for Deleting a Task */}
       <DeleteConfirmModal

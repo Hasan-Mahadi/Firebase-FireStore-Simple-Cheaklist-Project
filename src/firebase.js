@@ -142,6 +142,41 @@ export const updateTaskStatusInFirestore = async (taskId, nextCompleted, userEma
 };
 
 /**
+ * Updates a task's note/value in the shared Firestore document.
+ * @param {string} taskId - The ID of the task
+ * @param {string} note - The updated note or value
+ * @param {string} userEmail - The email of the team member making the change
+ * @param {Array} currentTasks - The current tasks array to apply the change to
+ */
+export const updateTaskNoteInFirestore = async (taskId, note, userEmail, currentTasks) => {
+  if (!db) {
+    throw new Error("Firebase Firestore is not initialized. Please configure .env file.");
+  }
+
+  const docRef = doc(db, CHECKLIST_COLLECTION, SHARED_DOC_ID);
+
+  const updatedTasks = currentTasks.map((task) => {
+    if (task.id === taskId) {
+      return {
+        ...task,
+        note: note,
+        updatedAt: new Date().toISOString(),
+        updatedBy: userEmail || "Anonymous Team Member",
+      };
+    }
+    return task;
+  });
+
+  await updateDoc(docRef, {
+    tasks: updatedTasks,
+    lastUpdated: serverTimestamp(),
+    updatedBy: userEmail || "Team Member",
+  });
+
+  return updatedTasks;
+};
+
+/**
  * Adds a new task to the shared Firestore document.
  * @param {string} categoryId - The category ID
  * @param {string} title - The title of the task

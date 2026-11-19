@@ -8,12 +8,12 @@ export const INITIAL_CATEGORIES = [
       {
         id: "task-1",
         title: "Final logo, brand colors ও brand identity চূড়ান্ত করা",
-        completed: true,
+        completed: false,
       },
       {
         id: "task-2",
         title: "Amar City-এর সংক্ষিপ্ত পরিচিতি ও official tagline প্রস্তুত করা",
-        completed: true,
+        completed: false,
       },
       {
         id: "task-3",
@@ -40,27 +40,27 @@ export const INITIAL_CATEGORIES = [
       {
         id: "task-6",
         title: "Google Play Developer Account ও App Publishing Setup সম্পন্ন করা",
-        completed: true,
+        completed: false,
       },
       {
         id: "task-7",
         title: "App Name, Short Description ও Full Description প্রস্তুত করা",
-        completed: true,
+        completed: false,
       },
       {
         id: "task-8",
         title: "Professional App Icon ও Feature Graphic তৈরি করা",
-        completed: true,
+        completed: false,
       },
       {
         id: "task-9",
         title: "প্রতিটি গুরুত্বপূর্ণ ফিচারের Professional Screenshot তৈরি করা",
-        completed: true,
+        completed: false,
       },
       {
         id: "task-10",
         title: "App Preview / Promotional Video প্রস্তুত করা",
-        completed: true,
+        completed: false,
       },
       {
         id: "task-11",
@@ -228,7 +228,7 @@ export const INITIAL_CATEGORIES = [
       {
         id: "task-38",
         title: "Professional Banner তৈরি করা",
-        completed: true,
+        completed: false,
       },
       {
         id: "task-39",
@@ -468,6 +468,7 @@ export const getInitialTasksArray = () => {
         categoryNumber: cat.number,
         title: task.title,
         completed: Boolean(task.completed),
+        note: task.note || "",
         updatedAt: new Date().toISOString(),
         updatedBy: "Initial Setup",
       });

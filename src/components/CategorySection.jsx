@@ -8,6 +8,7 @@ export default function CategorySection({
   isExpanded,
   onToggleExpand,
   onToggleTask,
+  onUpdateTaskNote,
   onAddTask,
   onDeleteTask,
   isUpdating,
@@ -138,6 +139,7 @@ export default function CategorySection({
                 key={task.id}
                 task={task}
                 onToggle={onToggleTask}
+                onUpdateNote={onUpdateTaskNote}
                 onDelete={onDeleteTask}
                 isUpdating={isUpdating}
               />

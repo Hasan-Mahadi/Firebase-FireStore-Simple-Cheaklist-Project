@@ -1,11 +1,10 @@
 import React from "react";
-import { CheckCircle2, Clock, ListChecks, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
+import { CheckCircle2, Clock, ListChecks, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function ProgressSummary({
   metrics,
   allExpanded,
   onToggleAllExpanded,
-  onOpenResetModal,
 }) {
   const { totalTasks, completedTasks, remainingTasks, percentage } = metrics;
 
@@ -43,15 +42,6 @@ export default function ProgressSummary({
                 <span>Expand All</span>
               </>
             )}
-          </button>
-
-          <button
-            onClick={onOpenResetModal}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors"
-            title="Reset to default initial progress"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-red-500" />
-            <span>Reset Checklist</span>
           </button>
         </div>
       </div>
