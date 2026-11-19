@@ -1,5 +1,16 @@
-import React, { useState, useEffect } from "react";
-import { Check, Trash2, ChevronDown, ChevronUp, Save, MessageSquareText } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Check,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  Save,
+  MessageSquareText,
+  Maximize2,
+  Minimize2,
+  Copy,
+  ExternalLink
+} from "lucide-react";
 
 export default function TaskItem({
   task,
@@ -10,13 +21,39 @@ export default function TaskItem({
 }) {
   const isCompleted = Boolean(task.completed);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [noteText, setNoteText] = useState(task.note || "");
   const [isSaved, setIsSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const textareaRef = useRef(null);
 
   // Sync internal state if task prop changes from external source (e.g. Firestore sync)
   useEffect(() => {
     setNoteText(task.note || "");
   }, [task.note]);
+
+  // Auto resize textarea height based on content when expanded
+  useEffect(() => {
+    if (isExpanded && textareaRef.current && !isFullScreen) {
+      textareaRef.current.style.height = "auto";
+      const scrollHeight = textareaRef.current.scrollHeight;
+      // Set to scrollHeight but max 450px so it fits well inline
+      textareaRef.current.style.height = `${Math.min(Math.max(scrollHeight, 90), 450)}px`;
+    }
+  }, [noteText, isExpanded, isFullScreen]);
+
+  // Handle ESC key to exit fullscreen modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && isFullScreen) {
+        setIsFullScreen(false);
+      }
+    };
+    if (isFullScreen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFullScreen]);
 
   const handleSaveNote = async (e) => {
     e?.stopPropagation();
@@ -24,6 +61,14 @@ export default function TaskItem({
       await onUpdateNote(task.id, noteText);
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 2000);
+    }
+  };
+
+  const handleCopy = () => {
+    if (noteText) {
+      navigator.clipboard.writeText(noteText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -147,18 +192,57 @@ export default function TaskItem({
 
       {/* Expandable Task Data/Value Note Field */}
       {isExpanded && (
-        <div className="px-4 pb-3 pt-1 border-t border-gray-100 bg-gray-50/70 rounded-b-lg">
+        <div className="px-4 pb-3 pt-2 border-t border-gray-100 bg-gray-50/70 rounded-b-lg">
           <div className="space-y-2">
-            <label className="block text-xs font-semibold text-gray-700">
-              Task Data / Value (এই টাস্কের ডাটা বা যে ভ্যালুর জন্য সম্পন্ন করা হচ্ছে):
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-gray-700 flex items-center space-x-1.5">
+                <span>Task Data / Value (এই টাস্কের ডাটা বা ভ্যালু):</span>
+              </label>
+
+              {/* Action buttons: Fullscreen, Copy */}
+              <div className="flex items-center space-x-1">
+                {noteText && (
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    className="inline-flex items-center space-x-1 px-2 py-0.5 text-xs text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-100 border border-gray-200 rounded transition-colors"
+                    title="Copy full text"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-3 h-3 text-emerald-600" />
+                        <span className="text-[11px] text-emerald-600">Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        <span className="text-[11px]">Copy</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsFullScreen(true)}
+                  className="inline-flex items-center space-x-1 px-2 py-0.5 text-xs text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded transition-colors font-medium cursor-pointer"
+                  title="Open full page view to read all text easily"
+                >
+                  <Maximize2 className="w-3 h-3" />
+                  <span className="text-[11px]">Full Page Read / Expand</span>
+                </button>
+              </div>
+            </div>
+
             <textarea
-              rows={2}
+              ref={textareaRef}
+              rows={3}
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
               placeholder="এখানে এই টাস্ক সম্পর্কিত তথ্য, ডাটা, লিংক বা ভ্যালু লিখে সেভ করুন..."
-              className="w-full text-xs sm:text-sm p-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800 select-text"
+              className="w-full text-xs sm:text-sm p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800 select-text leading-relaxed font-sans min-h-[90px] resize-y"
             />
+
             <div className="flex items-center justify-between pt-1">
               <span className="text-[11px] text-gray-500">
                 {isSaved ? (
@@ -175,9 +259,9 @@ export default function TaskItem({
                 <button
                   type="button"
                   onClick={() => setIsExpanded(false)}
-                  className="px-2.5 py-1 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-200/60 rounded cursor-pointer"
+                  className="px-2.5 py-1 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-200/60 rounded cursor-pointer font-medium"
                 >
-                  Close
+                  Collapse
                 </button>
                 <button
                   type="button"
@@ -187,6 +271,105 @@ export default function TaskItem({
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>Save Data</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Page Modal for Reading & Editing Long Data */}
+      {isFullScreen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 w-full max-w-4xl h-[92vh] max-h-[850px] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50/80">
+              <div className="flex items-center space-x-2.5 min-w-0 pr-4">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center flex-shrink-0">
+                  <MessageSquareText className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base font-bold text-gray-900 truncate">
+                    {task.title}
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Task Data / Value (সম্পূর্ণ বিস্তারিত তথ্য পড়ার পেজ)
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                {noteText && (
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs text-gray-700 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors font-medium shadow-2xs"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="text-emerald-600">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-gray-500" />
+                        <span>Copy All</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsFullScreen(false)}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs text-gray-700 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors font-medium shadow-2xs"
+                  title="Close Full Page (Esc)"
+                >
+                  <Minimize2 className="w-3.5 h-3.5 text-gray-500" />
+                  <span>Collapse / Exit Full Page</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body / Full Text Area */}
+            <div className="flex-1 p-5 flex flex-col bg-slate-50/40 overflow-hidden">
+              <textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="এখানে সম্পূর্ণ বিস্তারিত তথ্য, ডকুমেন্টেশন, গাইডলাইন বা ভ্যালু সহজে পড়তে এবং লিখতে পারবেন..."
+                className="w-full flex-1 p-4 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800 text-sm sm:text-base leading-relaxed font-sans resize-none overflow-y-auto select-text shadow-inner"
+              />
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-3 border-t border-gray-200 bg-white flex items-center justify-between">
+              <div className="text-xs text-gray-500">
+                {isSaved ? (
+                  <span className="text-emerald-600 font-semibold flex items-center space-x-1.5">
+                    <Check className="w-4 h-4" />
+                    <span>Data successfully saved!</span>
+                  </span>
+                ) : (
+                  <span>কীবোর্ডের <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-[11px] font-mono text-gray-700">ESC</kbd> চেপে বা Collapse বাটনে ক্লিক করে বন্ধ করতে পারবেন</span>
+                )}
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setIsFullScreen(false)}
+                  className="px-3.5 py-1.5 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg cursor-pointer font-medium transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  disabled={isUpdating}
+                  onClick={handleSaveNote}
+                  className="inline-flex items-center space-x-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-xs"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Save Changes</span>
                 </button>
               </div>
             </div>
